@@ -1,9 +1,12 @@
 package prober
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -38,6 +41,7 @@ type Prober struct {
 	Type         string
 	Duration     time.Duration
 	Retry        uint
+	Webhook      string
 	HTTPSettings HTTPSettings
 	UDPSettings  UDPSettings
 	TCPSettings  TCPSettings
@@ -60,6 +64,7 @@ func GetUintEnvDefault(key string, defaultValue uint) uint {
 func BuildProber() (*Prober, error) {
 	probeType := os.Getenv("PROBER_TYPE")
 	probeDuration := os.Getenv("PROBER_DURATION")
+	webhook := os.Getenv("PROBER_WEBHOOK")
 	duration, err := time.ParseDuration(probeDuration)
 
 	if err != nil {
@@ -71,6 +76,7 @@ func BuildProber() (*Prober, error) {
 		Type:         strings.ToUpper(probeType),
 		Duration:     duration,
 		Retry:        GetUintEnvDefault("PROBER_RETRY", DEFAULT_HTTP_RETRY),
+		Webhook:      webhook,
 		HTTPSettings: HTTPSettings{},
 		TCPSettings:  TCPSettings{},
 		UDPSettings:  UDPSettings{},
@@ -104,6 +110,18 @@ func (prober *Prober) Valid() error {
 	if len(prober.Type) == 0 {
 		return errors.New("Type of prober is not set")
 	}
+
+	if len(prober.Webhook) > 0 {
+		u, err := url.ParseRequestURI(prober.Webhook)
+		if err != nil {
+			return errors.New("Webhook is invalid")
+		}
+		scheme := strings.ToUpper(u.Scheme)
+		if scheme != "HTTP" && scheme != "HTTPS" {
+			return fmt.Errorf("Webhook URL with scheme %s is not supported, only HTTP/HTTPS supported", scheme)
+		}
+	}
+
 	if prober.Type == "HTTP" {
 		httpSettings := prober.HTTPSettings
 		// Validate URL
@@ -157,6 +175,25 @@ func (prober *Prober) Valid() error {
 	}
 }
 
+func TriggerWebhook(prober *Prober) {
+	if len(prober.Webhook) > 0 {
+		output, err := json.Marshal(status.Status)
+		if err != nil {
+			log.Printf("Failed to marshal json")
+			return
+		}
+		resp, err := http.Post(prober.Webhook, "application/json", bytes.NewBuffer(output))
+		if err != nil {
+			log.Printf("Failed to POST webhook")
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			log.Printf("Failed to POST webhook, status code %d", resp.StatusCode)
+		}
+	}
+}
+
 func (prober *Prober) RunForver() {
 	for {
 		if prober.Type == "HTTP" {
@@ -166,6 +203,7 @@ func (prober *Prober) RunForver() {
 		} else if prober.Type == "UDP" {
 			UDPProbe(prober)
 		}
+		TriggerWebhook(prober)
 		log.Printf("STATUS: %s - %s", status.Status.Status, time.Now().UTC())
 		time.Sleep(prober.Duration)
 	}
