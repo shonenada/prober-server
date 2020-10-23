@@ -12,7 +12,7 @@ func UDPProbe(prober *Prober) {
 	target := fmt.Sprintf("%s:%s", udpSettings.Host, udpSettings.Port)
 	conn, err := net.Dial("udp", target)
 	if err != nil {
-		if prober.Retry > status.Status.RetryTime {
+		if prober.Retry > status.Status.RetryTimes {
 			status.Status.SetMessage(err.Error())
 			status.Status.Retrying()
 		} else {

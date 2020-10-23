@@ -72,8 +72,25 @@ $ go run main.go
 ## Adding Webhook
 
 You can setup webhook URL for recieving result of prober. To achieve webhook
-just setup `PROBER_WEBHOOK` environment variable.
+just setup `PROBER_NAME` and `PROBER_WEBHOOK` environment variables.
+
+NOTE: `PROBER_NAME` is set for identity your service.
+
 
 ```sh
+$ export PROBER_NAME="YOUR_SERVER"
 $ export PROBER_WEBHOOK="http://your-webhook.com"
+```
+
+Then you will recieve a POST Request with following payload:
+
+```json
+{
+  "code": 1,
+  "last_updated": "2020-10-23T10:21:05.312644Z",
+  "message": "Get \"http://localhost:80\": dial tcp [::1]:80: connect: connection refused",
+  "name": "NGINX",
+  "retry_times": 1,
+  "status": "RETRYING"
+}
 ```

@@ -38,6 +38,7 @@ type UDPSettings struct {
 }
 
 type Prober struct {
+	Name         string
 	Type         string
 	Duration     time.Duration
 	Retry        uint
@@ -62,6 +63,7 @@ func GetUintEnvDefault(key string, defaultValue uint) uint {
 }
 
 func BuildProber() (*Prober, error) {
+	name := os.Getenv("PROBER_NAME")
 	probeType := os.Getenv("PROBER_TYPE")
 	probeDuration := os.Getenv("PROBER_DURATION")
 	webhook := os.Getenv("PROBER_WEBHOOK")
@@ -73,6 +75,7 @@ func BuildProber() (*Prober, error) {
 	}
 
 	prober := Prober{
+		Name:         name,
 		Type:         strings.ToUpper(probeType),
 		Duration:     duration,
 		Retry:        GetUintEnvDefault("PROBER_RETRY", DEFAULT_HTTP_RETRY),
@@ -97,6 +100,10 @@ func BuildProber() (*Prober, error) {
 }
 
 func (prober *Prober) Valid() error {
+	if len(prober.Type) == 0 {
+		return errors.New("Type of prober is not set")
+	}
+
 	// Validate Duartion
 	if prober.Duration < time.Millisecond {
 		return errors.New("Duration is invalid")
@@ -107,10 +114,6 @@ func (prober *Prober) Valid() error {
 		return errors.New("Retry is invalid")
 	}
 
-	if len(prober.Type) == 0 {
-		return errors.New("Type of prober is not set")
-	}
-
 	if len(prober.Webhook) > 0 {
 		u, err := url.ParseRequestURI(prober.Webhook)
 		if err != nil {
@@ -119,6 +122,10 @@ func (prober *Prober) Valid() error {
 		scheme := strings.ToUpper(u.Scheme)
 		if scheme != "HTTP" && scheme != "HTTPS" {
 			return fmt.Errorf("Webhook URL with scheme %s is not supported, only HTTP/HTTPS supported", scheme)
+		}
+
+		if len(prober.Name) == 0 {
+			return errors.New("Name cannot be empty when webhook is set")
 		}
 	}
 
@@ -175,9 +182,26 @@ func (prober *Prober) Valid() error {
 	}
 }
 
+type WebhookRequest struct {
+	Name        string    `json:"name"`
+	Code        uint      `json:"code"`
+	Status      string    `json:"status"`
+	Message     string    `json:"message"`
+	RetryTimes  uint      `json:"retry_times"`
+	LastUpdated time.Time `json:"last_updated"`
+}
+
 func TriggerWebhook(prober *Prober) {
 	if len(prober.Webhook) > 0 {
-		output, err := json.Marshal(status.Status)
+		wrq := WebhookRequest{
+			Name:        prober.Name,
+			Code:        status.Status.Code,
+			Status:      status.Status.Status,
+			Message:     status.Status.Message,
+			RetryTimes:  status.Status.RetryTimes,
+			LastUpdated: status.Status.LastUpdated,
+		}
+		output, err := json.Marshal(wrq)
 		if err != nil {
 			log.Printf("Failed to marshal json")
 			return
@@ -203,7 +227,7 @@ func (prober *Prober) RunForver() {
 		} else if prober.Type == "UDP" {
 			UDPProbe(prober)
 		}
-		TriggerWebhook(prober)
+		go TriggerWebhook(prober)
 		log.Printf("STATUS: %s - %s", status.Status.Status, time.Now().UTC())
 		time.Sleep(prober.Duration)
 	}

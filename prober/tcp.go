@@ -12,7 +12,7 @@ func TCPProbe(prober *Prober) {
 	target := fmt.Sprintf("%s:%d", tcpSettings.Host, tcpSettings.Port)
 	conn, err := net.Dial("tcp", target)
 	if err != nil {
-		if prober.Retry > status.Status.RetryTime {
+		if prober.Retry > status.Status.RetryTimes {
 			status.Status.SetMessage(err.Error())
 			status.Status.Retrying()
 		} else {

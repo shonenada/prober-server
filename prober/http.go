@@ -11,7 +11,7 @@ func HTTPProbe(prober *Prober) {
 	httpSettings := prober.HTTPSettings
 	resp, err := http.Get(httpSettings.URL)
 	if err != nil {
-		if prober.Retry > status.Status.RetryTime {
+		if prober.Retry > status.Status.RetryTimes {
 			status.Status.SetMessage(err.Error())
 			status.Status.Retrying()
 		} else {
@@ -28,7 +28,7 @@ func HTTPProbe(prober *Prober) {
 		status.Status.Success()
 		return
 	} else {
-		if prober.Retry > status.Status.RetryTime {
+		if prober.Retry > status.Status.RetryTimes {
 			status.Status.SetMessage(fmt.Sprintf("Response statusCode %d is not range of 200 ~ 299 ", resp.StatusCode))
 			status.Status.Retrying()
 		} else {

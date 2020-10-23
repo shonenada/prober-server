@@ -21,13 +21,13 @@ type ServiceStatus struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 
-	RetryTime   uint      `json:"retry_time"`
+	RetryTimes  uint      `json:"retry_times"`
 	LastUpdated time.Time `json:"last_updated"`
 }
 
 func InitServiceStatus() ServiceStatus {
 	status := ServiceStatus{
-		RetryTime: 0,
+		RetryTimes: 0,
 	}
 	status.Pending()
 	return status
@@ -44,7 +44,7 @@ func (status *ServiceStatus) FlushMessage() {
 func (status *ServiceStatus) Success() {
 	status.Code = STATUS_SUCCESS_CODE
 	status.Status = STATUS_SUCCESS_MSG
-	status.RetryTime = 0
+	status.RetryTimes = 0
 	status.LastUpdated = time.Now().UTC()
 }
 
@@ -55,7 +55,7 @@ func (status *ServiceStatus) IsSuccess() bool {
 func (status *ServiceStatus) Retrying() {
 	status.Code = STATUS_RETRYING_CODE
 	status.Status = STATUS_RETRYING_MSG
-	status.RetryTime = status.RetryTime + 1
+	status.RetryTimes = status.RetryTimes + 1
 	status.LastUpdated = time.Now().UTC()
 }
 
@@ -66,7 +66,7 @@ func (status *ServiceStatus) IsRetrying() bool {
 func (status *ServiceStatus) Failed() {
 	status.Code = STATUS_FAILED_CODE
 	status.Status = STATUS_FAILED_MSG
-	status.RetryTime = status.RetryTime + 1
+	status.RetryTimes = status.RetryTimes + 1
 	status.LastUpdated = time.Now().UTC()
 }
 
