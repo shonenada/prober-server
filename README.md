@@ -68,3 +68,12 @@ $ export PROBER_UDP_HOST="example.com"
 $ export PROBER_UDP_PORT="4093"
 $ go run main.go
 ```
+
+## Adding Webhook
+
+You can setup webhook URL for recieving result of prober. To achieve webhook
+just setup `PROBER_WEBHOOK` environment variable.
+
+```sh
+$ export PROBER_WEBHOOK="http://your-webhook.com"
+```
