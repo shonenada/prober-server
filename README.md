@@ -4,9 +4,9 @@
 
 ```sh
 $ export PROBER_SERVER_PORT="9078"
-$ export PROBER_TYPE="HTTP"
 $ export PROBER_DURATION="5s"
 $ export PROBER_RETRY="5"
+$ export PROBER_TYPE="HTTP"
 $ export PROBER_HTTP_URL="http://example.com/healthcheck"
 $ go run main.go
 2020/10/23 14:34:56 Env `PROBER_HTTP_TIMEOUT` is not set, using default value 30
@@ -33,7 +33,7 @@ $ curl http://localhost:9078
 
 ## Using docker
 
-```$
+```sh
 $ docker build --tag prober-server:latest .
 $ docker run -tid --name prober-server -p 9078:9078 \
   -e PROBER_TYPE=http \
@@ -41,4 +41,30 @@ $ docker run -tid --name prober-server -p 9078:9078 \
   -e PROBER_RETRY=5 \
   -e PROBER_HTTP_URL="http://example.com/healthcheck" \
   prober-server:latest
+```
+
+## TCP and UDP
+
+You can also probe TCP service by set `PROBER_TYPE` environment variables:
+
+```sh
+$ export PROBER_SERVER_PORT="9078"
+$ export PROBER_DURATION="5s"
+$ export PROBER_RETRY="5"
+$ export PROBER_TYPE="TCP"    # this changed
+$ export PROBER_TCP_HOST="example.com"
+$ export PROBER_TCP_PORT="8080"
+$ go run main.go
+```
+
+And UDP service by:
+
+```sh
+$ export PROBER_SERVER_PORT="9078"
+$ export PROBER_DURATION="5s"
+$ export PROBER_RETRY="5"
+$ export PROBER_TYPE="UDP"    # this changed
+$ export PROBER_UDP_HOST="example.com"
+$ export PROBER_UDP_PORT="4093"
+$ go run main.go
 ```
