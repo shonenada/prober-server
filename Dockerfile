@@ -5,8 +5,21 @@ RUN cd /src && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app
 
 # final stage
 FROM alpine
-WORKDIR /app
-COPY --from=build-env /src/app /app/
-ENTRYPOINT ./app
 
-expose 9078
+ENV PROBER_SERVER_PORT "9078"
+ENV PROBER_DURATION "60s"
+ENV PROBER_RETRY "5"
+ENV PROBER_TYPE ""
+ENV PROBER_HTTP_URL ""
+ENV PROBER_HTTP_TIMEOUT ""
+ENV PROBER_TCP_HOST ""
+ENV PROBER_TCP_PORT ""
+ENV PROBER_UDP_HOST ""
+ENV PROBER_UDP_PORT ""
+
+WORKDIR /app
+
+COPY --from=build-env /src/app /app/
+
+EXPOSE 9078
+ENTRYPOINT ./app
