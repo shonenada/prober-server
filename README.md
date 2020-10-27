@@ -1,5 +1,7 @@
 # Prober Server
 
+Prober Server probe your services deploy in kubernetes as a sidecar.
+
 ## Run in your host
 
 ```sh
