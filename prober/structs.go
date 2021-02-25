@@ -38,14 +38,15 @@ type UDPSettings struct {
 }
 
 type Prober struct {
-	Name         string
-	Type         string
-	Duration     time.Duration
-	Retry        uint
-	Webhook      string
-	HTTPSettings HTTPSettings
-	UDPSettings  UDPSettings
-	TCPSettings  TCPSettings
+	Name          string
+	Type          string
+	Duration      time.Duration
+	Retry         uint
+	Webhook       string
+	WebhookConfig WebhookConfig
+	HTTPSettings  HTTPSettings
+	UDPSettings   UDPSettings
+	TCPSettings   TCPSettings
 }
 
 func GetUintEnvDefault(key string, defaultValue uint) uint {
@@ -192,8 +193,17 @@ type WebhookRequest struct {
 	LastUpdated time.Time `json:"last_updated"`
 }
 
-func TriggerWebhook(prober *Prober) {
-	if len(prober.Webhook) > 0 {
+func BuildHeaders(prober *Prober) {
+}
+
+func BuildBody(prober *Prober) (string, error) {
+	config := proper.WebhookConfig.Body
+	if len(config.raw) > 0 {
+		return config.raw
+	} else if len(config.template) > 0 {
+		// TODO
+		return config.template
+	} else {
 		wrq := WebhookRequest{
 			Name:        prober.Name,
 			Code:        status.Status.Code,
@@ -204,10 +214,20 @@ func TriggerWebhook(prober *Prober) {
 		}
 		output, err := json.Marshal(wrq)
 		if err != nil {
-			log.Printf("Failed to marshal json")
+			return errors.New("Failed to marshal json")
+		}
+		return output
+	}
+}
+
+func TriggerWebhook(prober *Prober) {
+	if len(prober.Webhook) > 0 {
+		body, err := BuildBody(prober)
+		if err != nil {
+			log.Printf("Failed to generate body")
 			return
 		}
-		resp, err := http.Post(prober.Webhook, "application/json", bytes.NewBuffer(output))
+		resp, err := http.Post(prober.Webhook, "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			log.Printf("Failed to POST webhook")
 			return
