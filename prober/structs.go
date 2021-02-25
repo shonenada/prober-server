@@ -67,6 +67,7 @@ func BuildProber() (*Prober, error) {
 	probeType := os.Getenv("PROBER_TYPE")
 	probeDuration := os.Getenv("PROBER_DURATION")
 	webhook := os.Getenv("PROBER_WEBHOOK")
+	config := os.Getenv("PROBER_CONFIG")
 	duration, err := time.ParseDuration(probeDuration)
 
 	if err != nil {
