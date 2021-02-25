@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/shonenada/prober-server/status"
@@ -69,22 +70,34 @@ func BuildProber() (*Prober, error) {
 	probeDuration := os.Getenv("PROBER_DURATION")
 	webhook := os.Getenv("PROBER_WEBHOOK")
 	config := os.Getenv("PROBER_CONFIG")
-	duration, err := time.ParseDuration(probeDuration)
 
+	duration, err := time.ParseDuration(probeDuration)
 	if err != nil {
 		log.Printf("failed to parse `%s` as time.Duration, using default value: %s", probeDuration, DEFAULT_PROBE_DURATION)
 		duration = DEFAULT_PROBE_DURATION
 	}
 
+	var webhookConfig WebhookConfig
+	if len(config) > 0 {
+		webhookConfig, err = ConfigFromFile(config)
+		if err != nil {
+			log.Printf("Failed to build config from file: %s", err)
+			webhookConfig = WebhookConfig{}
+		}
+	} else {
+		webhookConfig = WebhookConfig{}
+	}
+
 	prober := Prober{
-		Name:         name,
-		Type:         strings.ToUpper(probeType),
-		Duration:     duration,
-		Retry:        GetUintEnvDefault("PROBER_RETRY", DEFAULT_HTTP_RETRY),
-		Webhook:      webhook,
-		HTTPSettings: HTTPSettings{},
-		TCPSettings:  TCPSettings{},
-		UDPSettings:  UDPSettings{},
+		Name:          name,
+		Type:          strings.ToUpper(probeType),
+		Duration:      duration,
+		Retry:         GetUintEnvDefault("PROBER_RETRY", DEFAULT_HTTP_RETRY),
+		Webhook:       webhook,
+		WebhookConfig: webhookConfig,
+		HTTPSettings:  HTTPSettings{},
+		TCPSettings:   TCPSettings{},
+		UDPSettings:   UDPSettings{},
 	}
 
 	if prober.Type == "HTTP" {
@@ -193,9 +206,9 @@ type WebhookRequest struct {
 	LastUpdated time.Time `json:"last_updated"`
 }
 
-func BuildHeaders(prober *Prober) (*http.Header, error) {
+func BuildHeaders(prober *Prober) *http.Header {
 	headers := http.Header{}
-	config := proper.WebhookConfig.Body
+	config := prober.WebhookConfig
 	for k, v := range config.Headers {
 		headers.Set(k, v)
 	}
@@ -208,13 +221,10 @@ func BuildHeaders(prober *Prober) (*http.Header, error) {
 	return &headers
 }
 
-func BuildBody(prober *Prober) (string, error) {
-	config := proper.WebhookConfig.Body
-	if len(config.raw) > 0 {
-		return config.raw
-	} else if len(config.template) > 0 {
-		// TODO
-		return config.template
+func BuildBody(prober *Prober) ([]byte, error) {
+	config := prober.WebhookConfig.Body
+	if len(config.Plain) > 0 {
+		return []byte(config.Plain), nil
 	} else {
 		wrq := WebhookRequest{
 			Name:        prober.Name,
@@ -224,11 +234,25 @@ func BuildBody(prober *Prober) (string, error) {
 			RetryTimes:  status.Status.RetryTimes,
 			LastUpdated: status.Status.LastUpdated,
 		}
-		output, err := json.Marshal(wrq)
-		if err != nil {
-			return errors.New("Failed to marshal json")
+		if len(config.Template) > 0 {
+			template, err := template.New("template").Parse(config.Template)
+			if err != nil {
+				return []byte{}, err
+			}
+
+			var buff bytes.Buffer
+			err = template.Execute(&buff, wrq)
+			if err != nil {
+				return []byte{}, err
+			}
+			return buff.Bytes(), nil
+		} else {
+			output, err := json.Marshal(wrq)
+			if err != nil {
+				return []byte{}, errors.New("Failed to marshal json")
+			}
+			return output, nil
 		}
-		return output
 	}
 }
 
@@ -240,7 +264,8 @@ func TriggerWebhook(prober *Prober) {
 			return
 		}
 		req, err := http.NewRequest("POST", prober.Webhook, bytes.NewBuffer(body))
-
+		client := &http.Client{}
+		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("Failed to POST webhook")
 			return
