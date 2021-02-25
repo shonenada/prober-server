@@ -1,0 +1,10 @@
+---
+headers:
+  Content-Type: application/json
+  User-Agent: prober
+body:
+  # plain: "Service is down"
+  template: |
+    {
+      "text": "{{ .Name }} {{ .Status }} at {{ .LastUpdated }}"
+    }
