@@ -206,9 +206,9 @@ type WebhookRequest struct {
 	LastUpdated time.Time `json:"last_updated"`
 }
 
-func BuildHeaders(prober *Prober) http.Header {
-	headers := http.Header{}
+func (prober *Prober) BuildHeaders() http.Header {
 	config := prober.WebhookConfig
+	headers := http.Header{}
 	for k, v := range config.Headers {
 		headers.Set(k, v)
 	}
@@ -221,10 +221,10 @@ func BuildHeaders(prober *Prober) http.Header {
 	return headers
 }
 
-func BuildBody(prober *Prober) ([]byte, error) {
-	config := prober.WebhookConfig.Body
-	if len(config.Plain) > 0 {
-		return []byte(config.Plain), nil
+func (prober *Prober) BuildBody() ([]byte, error) {
+	config := prober.WebhookConfig
+	if len(config.Body.Plain) > 0 {
+		return []byte(config.Body.Plain), nil
 	} else {
 		wrq := WebhookRequest{
 			Name:        prober.Name,
@@ -234,8 +234,8 @@ func BuildBody(prober *Prober) ([]byte, error) {
 			RetryTimes:  status.Status.RetryTimes,
 			LastUpdated: status.Status.LastUpdated,
 		}
-		if len(config.Template) > 0 {
-			template, err := template.New("template").Parse(config.Template)
+		if len(config.Body.Template) > 0 {
+			template, err := template.New("template").Parse(config.Body.Template)
 			if err != nil {
 				return []byte{}, err
 			}
@@ -256,15 +256,15 @@ func BuildBody(prober *Prober) ([]byte, error) {
 	}
 }
 
-func TriggerWebhook(prober *Prober) {
+func (prober *Prober) TriggerWebhook() {
 	if len(prober.Webhook) > 0 {
-		body, err := BuildBody(prober)
+		body, err := prober.BuildBody()
 		if err != nil {
 			log.Printf("Failed to generate body")
 			return
 		}
 		req, err := http.NewRequest("POST", prober.Webhook, bytes.NewBuffer(body))
-		req.Header = BuildHeaders(prober)
+		req.Header = prober.BuildHeaders()
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
@@ -287,7 +287,7 @@ func (prober *Prober) RunForver() {
 		} else if prober.Type == "UDP" {
 			UDPProbe(prober)
 		}
-		go TriggerWebhook(prober)
+		go prober.TriggerWebhook()
 		log.Printf("STATUS: %s - %s", status.Status.Status, time.Now().UTC())
 		time.Sleep(prober.Duration)
 	}
