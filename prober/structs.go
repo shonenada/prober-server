@@ -206,7 +206,7 @@ type WebhookRequest struct {
 	LastUpdated time.Time `json:"last_updated"`
 }
 
-func BuildHeaders(prober *Prober) *http.Header {
+func BuildHeaders(prober *Prober) http.Header {
 	headers := http.Header{}
 	config := prober.WebhookConfig
 	for k, v := range config.Headers {
@@ -218,7 +218,7 @@ func BuildHeaders(prober *Prober) *http.Header {
 	if len(headers.Get("Content-Type")) == 0 {
 		headers.Set("User-Agent", "ProberServer")
 	}
-	return &headers
+	return headers
 }
 
 func BuildBody(prober *Prober) ([]byte, error) {
@@ -264,6 +264,7 @@ func TriggerWebhook(prober *Prober) {
 			return
 		}
 		req, err := http.NewRequest("POST", prober.Webhook, bytes.NewBuffer(body))
+		req.Header = BuildHeaders(prober)
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
