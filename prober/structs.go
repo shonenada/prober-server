@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/shonenada/prober-server/status"
@@ -38,14 +39,15 @@ type UDPSettings struct {
 }
 
 type Prober struct {
-	Name         string
-	Type         string
-	Duration     time.Duration
-	Retry        uint
-	Webhook      string
-	HTTPSettings HTTPSettings
-	UDPSettings  UDPSettings
-	TCPSettings  TCPSettings
+	Name          string
+	Type          string
+	Duration      time.Duration
+	Retry         uint
+	Webhook       string
+	WebhookConfig WebhookConfig
+	HTTPSettings  HTTPSettings
+	UDPSettings   UDPSettings
+	TCPSettings   TCPSettings
 }
 
 func GetUintEnvDefault(key string, defaultValue uint) uint {
@@ -67,22 +69,35 @@ func BuildProber() (*Prober, error) {
 	probeType := os.Getenv("PROBER_TYPE")
 	probeDuration := os.Getenv("PROBER_DURATION")
 	webhook := os.Getenv("PROBER_WEBHOOK")
-	duration, err := time.ParseDuration(probeDuration)
+	config := os.Getenv("PROBER_CONFIG")
 
+	duration, err := time.ParseDuration(probeDuration)
 	if err != nil {
 		log.Printf("failed to parse `%s` as time.Duration, using default value: %s", probeDuration, DEFAULT_PROBE_DURATION)
 		duration = DEFAULT_PROBE_DURATION
 	}
 
+	var webhookConfig WebhookConfig
+	if len(config) > 0 {
+		webhookConfig, err = ConfigFromFile(config)
+		if err != nil {
+			log.Printf("Failed to build config from file: %s", err)
+			webhookConfig = WebhookConfig{}
+		}
+	} else {
+		webhookConfig = WebhookConfig{}
+	}
+
 	prober := Prober{
-		Name:         name,
-		Type:         strings.ToUpper(probeType),
-		Duration:     duration,
-		Retry:        GetUintEnvDefault("PROBER_RETRY", DEFAULT_HTTP_RETRY),
-		Webhook:      webhook,
-		HTTPSettings: HTTPSettings{},
-		TCPSettings:  TCPSettings{},
-		UDPSettings:  UDPSettings{},
+		Name:          name,
+		Type:          strings.ToUpper(probeType),
+		Duration:      duration,
+		Retry:         GetUintEnvDefault("PROBER_RETRY", DEFAULT_HTTP_RETRY),
+		Webhook:       webhook,
+		WebhookConfig: webhookConfig,
+		HTTPSettings:  HTTPSettings{},
+		TCPSettings:   TCPSettings{},
+		UDPSettings:   UDPSettings{},
 	}
 
 	if prober.Type == "HTTP" {
@@ -191,8 +206,26 @@ type WebhookRequest struct {
 	LastUpdated time.Time `json:"last_updated"`
 }
 
-func TriggerWebhook(prober *Prober) {
-	if len(prober.Webhook) > 0 {
+func BuildHeaders(prober *Prober) http.Header {
+	headers := http.Header{}
+	config := prober.WebhookConfig
+	for k, v := range config.Headers {
+		headers.Set(k, v)
+	}
+	if len(headers.Get("Content-Type")) == 0 {
+		headers.Set("Content-Type", "application/json")
+	}
+	if len(headers.Get("Content-Type")) == 0 {
+		headers.Set("User-Agent", "ProberServer")
+	}
+	return headers
+}
+
+func BuildBody(prober *Prober) ([]byte, error) {
+	config := prober.WebhookConfig.Body
+	if len(config.Plain) > 0 {
+		return []byte(config.Plain), nil
+	} else {
 		wrq := WebhookRequest{
 			Name:        prober.Name,
 			Code:        status.Status.Code,
@@ -201,12 +234,39 @@ func TriggerWebhook(prober *Prober) {
 			RetryTimes:  status.Status.RetryTimes,
 			LastUpdated: status.Status.LastUpdated,
 		}
-		output, err := json.Marshal(wrq)
+		if len(config.Template) > 0 {
+			template, err := template.New("template").Parse(config.Template)
+			if err != nil {
+				return []byte{}, err
+			}
+
+			var buff bytes.Buffer
+			err = template.Execute(&buff, wrq)
+			if err != nil {
+				return []byte{}, err
+			}
+			return buff.Bytes(), nil
+		} else {
+			output, err := json.Marshal(wrq)
+			if err != nil {
+				return []byte{}, errors.New("Failed to marshal json")
+			}
+			return output, nil
+		}
+	}
+}
+
+func TriggerWebhook(prober *Prober) {
+	if len(prober.Webhook) > 0 {
+		body, err := BuildBody(prober)
 		if err != nil {
-			log.Printf("Failed to marshal json")
+			log.Printf("Failed to generate body")
 			return
 		}
-		resp, err := http.Post(prober.Webhook, "application/json", bytes.NewBuffer(output))
+		req, err := http.NewRequest("POST", prober.Webhook, bytes.NewBuffer(body))
+		req.Header = BuildHeaders(prober)
+		client := &http.Client{}
+		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("Failed to POST webhook")
 			return
