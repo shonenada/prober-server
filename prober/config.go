@@ -11,6 +11,7 @@ type BodyConfig struct {
 }
 
 type WebhookConfig struct {
+	Version string            `yaml:"version"`
 	Headers map[string]string `yaml:"headers"`
 	Body    BodyConfig        `yaml:"body"`
 }
