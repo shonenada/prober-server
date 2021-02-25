@@ -96,3 +96,39 @@ Then you will recieve a POST Request with following payload:
   "status": "RETRYING"
 }
 ```
+
+## Custom HTTP headers and body
+
+By setting `PROBER_CONFIG`, you can setup custom headers and body
+
+```sh
+$ cat << EOF > /tmp/config.yaml
+version: "1"
+headers:
+  Content-Type: application/json;charset=utf-8
+  User-Agent: My-Prober
+body:
+  template: |
+    {
+      "text": "{{ .Name }} {{ .Status }} at {{ .LastUpdated }}"
+    }
+EOF
+
+$ export PROBER_CONFIG=/tmp/config.yaml
+$ go run main.go
+```
+
+Then you will recieve a HTTP POST Request like:
+
+```
+POST / HTTP/1.1
+Host: example.com:8080
+User-Agent: My-Prober
+Content-Length: 73
+Content-Type: application/json;charset=utf-7
+Accept-Encoding: gzip
+
+{
+  "text": "SomeService RETRYING at 2021-02-20 09:39:12.002609 +0000 UTC"
+}
+```
