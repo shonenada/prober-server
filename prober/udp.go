@@ -9,7 +9,7 @@ import (
 
 func UDPProbe(prober *Prober) {
 	udpSettings := prober.UDPSettings
-	target := fmt.Sprintf("%s:%s", udpSettings.Host, udpSettings.Port)
+	target := fmt.Sprintf("%s:%d", udpSettings.Host, udpSettings.Port)
 	conn, err := net.Dial("udp", target)
 	if err != nil {
 		if prober.Retry > status.Status.RetryTimes {
