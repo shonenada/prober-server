@@ -12,7 +12,7 @@ type BodyConfig struct {
 
 type WebhookConfig struct {
 	Version          string            `yaml:"version"`
-	StatusChangeOnly bool              `yaml:"status-change-only"`
+	StatusChangeOnly bool              `yaml:"-"`
 	Headers          map[string]string `yaml:"headers"`
 	Body             BodyConfig        `yaml:"body"`
 }

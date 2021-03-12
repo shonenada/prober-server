@@ -1,6 +1,5 @@
 ---
 version: "1"
-status-change-only: true
 headers:
   Content-Type: application/json
   User-Agent: prober
@@ -8,5 +7,5 @@ body:
   # plain: "Service is down"
   template: |
     {
-      "text": "{{ .Name }} {{ .Status }} at {{ .LastUpdated }}"
+      "text": "{{ .Name }} change to {{ .Status }} from {{ .LastStatus }} at {{ .LastUpdated }}"
     }

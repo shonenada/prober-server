@@ -70,6 +70,7 @@ func BuildProber() (*Prober, error) {
 	probeDuration := os.Getenv("PROBER_DURATION")
 	webhook := os.Getenv("PROBER_WEBHOOK")
 	config := os.Getenv("PROBER_CONFIG")
+	triggerOnStatusChange := os.Getenv("PROBER_TRIGGER_ON_STATUS_CHANGE")
 
 	duration, err := time.ParseDuration(probeDuration)
 	if err != nil {
@@ -87,6 +88,8 @@ func BuildProber() (*Prober, error) {
 	} else {
 		webhookConfig = WebhookConfig{}
 	}
+
+	webhookConfig.StatusChangeOnly = (triggerOnStatusChange == "true")
 
 	prober := Prober{
 		Name:          name,
@@ -201,6 +204,7 @@ type WebhookRequest struct {
 	Name        string    `json:"name"`
 	Code        uint      `json:"code"`
 	Status      string    `json:"status"`
+	LastStatus  string    `json:"last_status"`
 	Message     string    `json:"message"`
 	RetryTimes  uint      `json:"retry_times"`
 	LastUpdated time.Time `json:"last_updated"`
@@ -230,6 +234,7 @@ func (prober *Prober) BuildBody() ([]byte, error) {
 			Name:        prober.Name,
 			Code:        status.Status.Code,
 			Status:      status.Status.Status,
+			LastStatus:  status.Status.LastStatus,
 			Message:     status.Status.Message,
 			RetryTimes:  status.Status.RetryTimes,
 			LastUpdated: status.Status.LastUpdated,

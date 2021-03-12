@@ -24,13 +24,13 @@ Then you can get the status by HTTP API:
 
 ```sh
 $ curl http://localhost:9078
-{"code":0,"status":"SUCCESS","message":"","retry_time":0,"last_updated":"2020-10-23T06:32:49.779909Z"}
+{"code":0,"status":"SUCCESS","last_status":"PENDING","message":"","retry_time":0,"last_updated":"2020-10-23T06:32:49.779909Z"}
 
 $ curl http://localhost:9078
-{"code":1,"status":"RETRYING","message":"Get \"http://example.com:5000/healthcheck\": dial tcp 93.184.216.34:5000: i/o timeout","retry_time":1,"last_updated":"2020-10-23T06:35:26.304172Z"}
+{"code":1,"status":"RETRYING","last_status":"SUCCESS","message":"Get \"http://example.com:5000/healthcheck\": dial tcp 93.184.216.34:5000: i/o timeout","retry_time":1,"last_updated":"2020-10-23T06:35:26.304172Z"}
 
 $ curl http://localhost:9078
-{"code":2,"status":"FAILED","message":"Get \"http://example.com:5000/healthcheck\": dial tcp 93.184.216.34:5000: i/o timeout","retry_time":4,"last_updated":"2020-10-23T06:39:17.679375Z"}
+{"code":2,"status":"FAILED","last_status":"RETRYING","message":"Get \"http://example.com:5000/healthcheck\": dial tcp 93.184.216.34:5000: i/o timeout","retry_time":4,"last_updated":"2020-10-23T06:39:17.679375Z"}
 ```
 
 ## Using docker
@@ -93,7 +93,8 @@ Then you will recieve a POST Request with following payload:
   "message": "Get \"http://localhost:80\": dial tcp [::1]:80: connect: connection refused",
   "name": "NGINX",
   "retry_times": 1,
-  "status": "RETRYING"
+  "status": "RETRYING",
+  "last_status": "PENDING"
 }
 ```
 
@@ -110,7 +111,7 @@ headers:
 body:
   template: |
     {
-      "text": "{{ .Name }} {{ .Status }} at {{ .LastUpdated }}"
+      "text": "{{ .Name }} change to {{ .Status }} from {{ .LastStatus }}at {{ .LastUpdated }}"
     }
 EOF
 
@@ -129,6 +130,11 @@ Content-Type: application/json;charset=utf-7
 Accept-Encoding: gzip
 
 {
-  "text": "SomeService RETRYING at 2021-02-20 09:39:12.002609 +0000 UTC"
+  "text": "SomeService change to RETRYING from PENDING at 2021-02-20 09:39:12.002609 +0000 UTC"
 }
 ```
+
+## Only trigger webhook on status changes
+
+Set `PROBER_TRIGGER_ON_STATUS_CHANGE` to be `"true"` may make prober-server
+POST to webhook only when status changed.
