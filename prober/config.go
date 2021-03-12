@@ -11,9 +11,10 @@ type BodyConfig struct {
 }
 
 type WebhookConfig struct {
-	Version string            `yaml:"version"`
-	Headers map[string]string `yaml:"headers"`
-	Body    BodyConfig        `yaml:"body"`
+	Version          string            `yaml:"version"`
+	StatusChangeOnly bool              `yaml:"status-change-only"`
+	Headers          map[string]string `yaml:"headers"`
+	Body             BodyConfig        `yaml:"body"`
 }
 
 func ConfigFromFile(path string) (WebhookConfig, error) {

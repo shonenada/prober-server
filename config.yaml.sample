@@ -1,5 +1,6 @@
 ---
 version: "1"
+status-change-only: true
 headers:
   Content-Type: application/json
   User-Agent: prober

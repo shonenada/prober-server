@@ -287,7 +287,13 @@ func (prober *Prober) RunForver() {
 		} else if prober.Type == "UDP" {
 			UDPProbe(prober)
 		}
-		go prober.TriggerWebhook()
+		if prober.WebhookConfig.StatusChangeOnly {
+			if status.Status.IsStatusChanged() {
+				go prober.TriggerWebhook()
+			}
+		} else {
+			go prober.TriggerWebhook()
+		}
 		log.Printf("STATUS: %s - %s", status.Status.Status, time.Now().UTC())
 		time.Sleep(prober.Duration)
 	}

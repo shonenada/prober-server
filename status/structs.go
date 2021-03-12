@@ -17,9 +17,10 @@ const STATUS_PENDING_CODE = 9
 const STATUS_PENDING_MSG = "PENDING"
 
 type ServiceStatus struct {
-	Code    uint   `json:"code"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Code       uint   `json:"code"`
+	Status     string `json:"status"`
+	LastStatus string `json:"last_status"`
+	Message    string `json:"message"`
 
 	RetryTimes  uint      `json:"retry_times"`
 	LastUpdated time.Time `json:"last_updated"`
@@ -41,8 +42,13 @@ func (status *ServiceStatus) FlushMessage() {
 	status.Message = ""
 }
 
+func (status *ServiceStatus) IsStatusChanged() bool {
+	return status.LastStatus != status.Status
+}
+
 func (status *ServiceStatus) Success() {
 	status.Code = STATUS_SUCCESS_CODE
+	status.LastStatus = status.Status
 	status.Status = STATUS_SUCCESS_MSG
 	status.RetryTimes = 0
 	status.LastUpdated = time.Now().UTC()
@@ -54,6 +60,7 @@ func (status *ServiceStatus) IsSuccess() bool {
 
 func (status *ServiceStatus) Retrying() {
 	status.Code = STATUS_RETRYING_CODE
+	status.LastStatus = status.Status
 	status.Status = STATUS_RETRYING_MSG
 	status.RetryTimes = status.RetryTimes + 1
 	status.LastUpdated = time.Now().UTC()
@@ -65,6 +72,7 @@ func (status *ServiceStatus) IsRetrying() bool {
 
 func (status *ServiceStatus) Failed() {
 	status.Code = STATUS_FAILED_CODE
+	status.LastStatus = status.Status
 	status.Status = STATUS_FAILED_MSG
 	status.RetryTimes = status.RetryTimes + 1
 	status.LastUpdated = time.Now().UTC()
@@ -76,6 +84,7 @@ func (status *ServiceStatus) IsFailed() bool {
 
 func (status *ServiceStatus) Pending() {
 	status.Code = STATUS_PENDING_CODE
+	status.LastStatus = status.Status
 	status.Status = STATUS_PENDING_MSG
 	status.LastUpdated = time.Now().UTC()
 }
